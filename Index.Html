@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Estoque Local Pro</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+        .registro-card { border-left: 4px solid #16a34a; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <nav class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="font-bold">SISTEMA DE ESTOQUE</h1>
+        <button onclick="exportarDados()" class="text-xs bg-blue-800 px-3 py-1 rounded">Exportar JSON</button>
+    </nav>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+        
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">1. Gerenciar Locais</h2>
+            <div class="flex gap-2 mb-3">
+                <input id="plat_cod" type="text" placeholder="Cód. Ex: A1" class="border p-2 rounded w-1/3 text-sm">
+                <input id="plat_desc" type="text" placeholder="Descrição" class="border p-2 rounded w-1/2 text-sm">
+                <button id="btn_add_prat" class="bg-blue-600 text-white px-4 rounded font-bold">+</button>
+            </div>
+            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium">
+                <option value="">-- Selecione a Prateleira --</option>
+            </select>
+        </section>
+
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">2. Entrada de Material</h2>
+            
+            <div id="reader" class="mb-4"></div> 
+            
+            <div class="space-y-3">
+                <div class="flex gap-2">
+                    <input id="item_cod" type="text" placeholder="Código do Item" class="flex-1 border-2 border-blue-50 p-3 rounded-xl font-mono text-lg focus:border-blue-500 outline-none">
+                    <button onclick="iniciarScanner()" class="bg-gray-100 border p-3 rounded-xl">📷</button>
+                </div>
+                <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-md active:bg-green-700 transition-colors">
+                    SALVAR REGISTRO
+                </button>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-2 px-1">Últimos 5 Lançamentos</h2>
+            <div id="lista_estoque" class="space-y-2">
+                </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- INICIALIZAÇÃO DO BANCO DE DADOS ---
+        const db = new Dexie("EstoqueDB");
+        db.version(1).stores({
+            prateleiras: "++id, &codigo, descricao",
+            estoque: "++id, codigo_item, data, hora, codigo_prateleira"
+        });
+
+        db.open().then(() => {
+            console.log("Banco de dados aberto com sucesso");
+            carregarPrateleiras();
+            carregarEstoque();
+        }).catch(err => {
+            alert("Erro crítico ao abrir banco: " + err.message);
+        });
+
+        // --- FUNÇÃO PRATELEIRA (USANDO EVENT LISTENER PARA SER MAIS SEGURO) ---
+        document.getElementById('btn_add_prat').addEventListener('click', async () => {
+            const inputCod = document.getElementById('plat_cod');
+            const inputDesc = document.getElementById('plat_desc');
+            const cod = inputCod.value.trim().toUpperCase();
+            const desc = inputDesc.value.trim();
+
+            if(!cod) {
+                alert("Digite o código da prateleira!");
+                return;
+            }
+
+            try {
+                await db.prateleiras.add({ codigo: cod, descricao: desc });
+                inputCod.value = '';
+                inputDesc.value = '';
+                alert("Prateleira " + cod + " adicionada!");
+                await carregarPrateleiras();
+            } catch (e) {
+                if (e.name === 'ConstraintError') alert("Erro: Esse código já existe!");
+                else alert("Erro: " + e.message);
+            }
+        });
+
+        async function carregarPrateleiras() {
+            const prats = await db.prateleiras.toArray();
+            const select = document.getElementById('select_prateleira');
+            select.innerHTML = '<option value="">-- Selecione a Prateleira --</option>' + 
+                prats.map(p => `<option value="${p.codigo}">${p.codigo} - ${p.descricao}</option>`).join('');
+        }
+
+        // --- FUNÇÃO ESTOQUE ---
+        async function registrarEstoque() {
+            const item = document.getElementById('item_cod').value.trim();
+            const prat = document.getElementById('select_prateleira').value;
+            
+            if(!item || !prat) {
+                alert("Preencha o código do item e escolha a prateleira!");
+                return;
+            }
+
+            const agora = new Date();
+            try {
+                await db.estoque.add({
+                    codigo_item: item,
+                    codigo_prateleira: prat,
+                    data: agora.toLocaleDateString('pt-BR'),
+                    hora: agora.toLocaleTimeString('pt-BR')
+                });
+
+                document.getElementById('item_cod').value = '';
+                document.getElementById('item_cod').focus();
+                carregarEstoque();
+                if(navigator.vibrate) navigator.vibrate(50);
+            } catch (e) {
+                alert("Erro ao salvar: " + e.message);
+            }
+        }
+
+        async function carregarEstoque() {
+            const itens = await db.estoque.reverse().limit(5).toArray();
+            const lista = document.getElementById('lista_estoque');
+            if(itens.length === 0) {
+                lista.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">Nenhum registro local.</p>';
+                return;
+            }
+            lista.innerHTML = itens.map(i => `
+                <div class="bg-white p-3 rounded-lg border shadow-sm flex justify-between items-center registro-card">
+                    <div>
+                        <div class="font-mono font-bold text-gray-800">${i.codigo_item}</div>
+                        <div class="text-blue-600 text-xs font-bold">${i.codigo_prateleira}</div>
+                    </div>
+                    <div class="text-right text-gray-400 text-[10px]">${i.data}<br>${i.hora}</div>
+                </div>
+            `).join('');
+        }
+
+        // --- SCANNER ---
+        function iniciarScanner() {
+            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                (text) => {
+                    document.getElementById('item_cod').value = text;
+                    html5QrCode.stop();
+                    registrarEstoque();
+                }
+            ).catch(err => alert("Erro na câmera: " + err));
+        }
+
+        function exportarDados() {
+            db.estoque.toArray().then(dados => {
+                if(dados.length === 0) return alert("Não há dados para exportar");
+                const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `estoque_${new Date().getTime()}.json`;
+                a.click();
+            });
+        }
+
+        // Registro do Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log("SW error", err));
+        }
+    </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 {
-  "name": "Estoque Offline Pro",
+  "name": "Estoque Local Pro",
   "short_name": "Estoque",
+  "description": "Controle de estoque 100% local e offline",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#1d4ed8",

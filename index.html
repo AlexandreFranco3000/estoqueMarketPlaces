@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Estoque Offline</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+        #reader__dashboard_section_csr button { background: #3b82f6; color: white; padding: 5px 10px; border-radius: 5px; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-10 font-sans">
+
+    <nav class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="font-bold">ESTOQUE LOCAL</h1>
+        <button onclick="exportarDados()" class="text-xs bg-blue-800 px-3 py-1 rounded">Exportar</button>
+    </nav>
+
+    <main class="max-w-md mx-auto p-4 space-y-4">
+        
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-sm font-bold text-gray-500 uppercase mb-3">1. Localização</h2>
+            <div class="flex gap-2 mb-3">
+                <input id="plat_cod" type="text" placeholder="Cód. Prateleira" class="border p-2 rounded w-1/3 text-sm">
+                <input id="plat_desc" type="text" placeholder="Descrição" class="border p-2 rounded w-1/2 text-sm">
+                <button onclick="salvarPrateleira()" class="bg-blue-600 text-white px-4 rounded">+</button>
+            </div>
+            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium">
+                <option value="">-- Selecionar Prateleira --</option>
+            </select>
+        </section>
+
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-sm font-bold text-gray-500 uppercase mb-3">2. Escanear / Digitar</h2>
+            
+            <div id="reader" class="mb-4 bg-black"></div> 
+            
+            <div class="space-y-3">
+                <div class="flex gap-2">
+                    <input id="item_cod" type="text" placeholder="Código do Item" class="flex-1 border-2 border-blue-100 p-4 rounded-xl font-mono text-xl focus:border-blue-500 outline-none">
+                    <button onclick="iniciarScanner()" class="bg-gray-100 border p-4 rounded-xl active:bg-gray-200">📷</button>
+                </div>
+                <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-black text-lg shadow-lg active:scale-95 transition-transform">
+                    SALVAR NO ESTOQUE
+                </button>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-sm font-bold text-gray-500 uppercase

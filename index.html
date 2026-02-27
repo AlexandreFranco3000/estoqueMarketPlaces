@@ -18,49 +18,49 @@
 <body class="bg-gray-100 min-h-screen font-sans text-gray-900">
 
     <nav class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
-        <h1 class="font-bold uppercase tracking-tight">Estoque <span class="text-blue-200 text-xs">v2.2</span></h1>
+        <h1 class="font-bold uppercase tracking-tight text-sm">SISTEMA DE ESTOQUE <span class="text-blue-200">v2.3</span></h1>
         <button onclick="exportarDados()" class="text-xs bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition-colors">Exportar JSON</button>
     </nav>
 
-    <main class="max-w-md mx-auto p-4 space-y-6">
+    <main class="max-w-md mx-auto p-4 space-y-5">
         
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">1. Gerenciar Locais</h2>
+            <h2 class="text-[10px] font-bold text-gray-400 uppercase mb-3">1. Gerenciar Locais</h2>
             <div class="flex gap-2 mb-3">
-                <input id="plat_cod" type="text" placeholder="Ex: A1" class="border p-2 rounded w-1/3 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input id="plat_cod" type="text" placeholder="Ex: A1" class="border p-2 rounded w-1/3 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase">
                 <input id="plat_desc" type="text" placeholder="Descrição" class="border p-2 rounded w-1/2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 <button id="btn_add_prat" class="bg-blue-600 text-white px-4 rounded font-bold hover:bg-blue-700">+</button>
             </div>
-            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium text-gray-700">
+            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium text-gray-700 appearance-none">
                 <option value="">-- Selecione a Prateleira --</option>
             </select>
         </section>
 
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">2. Entrada de Material</h2>
+            <h2 class="text-[10px] font-bold text-gray-400 uppercase mb-3">2. Entrada de Material</h2>
             <div id="reader" class="mb-4"></div> 
             <div class="space-y-3">
                 <div class="flex gap-2">
-                    <input id="item_cod" type="text" placeholder="Código do Item" class="flex-1 border-2 border-blue-50 p-3 rounded-xl font-mono text-lg focus:border-blue-500 outline-none">
+                    <input id="item_cod" type="text" placeholder="Código do Item" class="flex-1 border border-gray-200 p-3 rounded-xl font-mono text-lg focus:border-blue-500 outline-none">
                     <button onclick="iniciarScanner()" class="bg-gray-100 border p-3 rounded-xl hover:bg-gray-200">📷</button>
                 </div>
                 <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition-all">
-                    SALVAR NO ESTOQUE
+                    SALVAR REGISTRO
                 </button>
             </div>
         </section>
 
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-orange-400">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3 text-orange-600 font-black">3. Pesquisar / Localizar Item</h2>
+            <h2 class="text-[10px] font-bold text-orange-500 uppercase mb-3">3. Pesquisar Item</h2>
             <div class="relative">
                 <input id="input_busca" type="text" oninput="pesquisar()" placeholder="Digite o código para localizar..." 
-                       class="w-full border-2 border-orange-100 p-3 rounded-xl pl-10 focus:border-orange-400 outline-none">
-                <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+                       class="w-full border border-gray-200 p-3 rounded-xl pl-10 focus:border-orange-400 outline-none">
+                <span class="absolute left-3 top-3.5 opacity-30 text-lg">🔍</span>
             </div>
         </section>
 
         <section>
-            <h2 id="titulo_lista" class="text-xs font-bold text-gray-400 uppercase mb-2 px-1">Últimos Lançamentos</h2>
+            <h2 id="titulo_lista" class="text-[10px] font-bold text-gray-400 uppercase mb-2 px-1">Últimos Lançamentos</h2>
             <div id="lista_estoque" class="space-y-2">
                 </div>
         </section>
@@ -77,7 +77,7 @@
         db.open().then(() => {
             carregarPrateleiras();
             carregarEstoque();
-        }).catch(err => alert("Erro: " + err.message));
+        }).catch(err => alert("Erro no banco: " + err.message));
 
         document.getElementById('btn_add_prat').addEventListener('click', async () => {
             const inputCod = document.getElementById('plat_cod');
@@ -101,7 +101,7 @@
         async function registrarEstoque() {
             const item = document.getElementById('item_cod').value.trim();
             const prat = document.getElementById('select_prateleira').value;
-            if(!item || !prat) return alert("Preencha o código e o local!");
+            if(!item || !prat) return alert("Bipe o item e selecione a prateleira!");
 
             await db.estoque.add({
                 codigo_item: item,
@@ -116,11 +116,10 @@
             if(navigator.vibrate) navigator.vibrate(50);
         }
 
-        // --- FUNÇÃO PARA APAGAR ITEM INDIVIDUAL ---
+        // FUNÇÃO DE EXCLUSÃO INDIVIDUAL
         async function deletarItem(id) {
-            if(confirm("Deseja apagar este registro?")) {
+            if(confirm("Deseja realmente apagar este registro?")) {
                 await db.estoque.delete(id);
-                // Verifica se deve recarregar a busca ou a lista geral
                 const termo = document.getElementById('input_busca').value.trim();
                 if(termo) pesquisar(); else carregarEstoque();
             }
@@ -136,7 +135,7 @@
                 return;
             }
 
-            titulo.innerText = "🔍 Resultados Encontrados";
+            titulo.innerText = "🔍 Resultados da Busca";
             const resultados = await db.estoque
                 .filter(i => i.codigo_item.toLowerCase().includes(termo))
                 .reverse()
@@ -153,15 +152,15 @@
         function renderizarLista(itens) {
             const lista = document.getElementById('lista_estoque');
             if(itens.length === 0) {
-                lista.innerHTML = '<p class="text-gray-400 text-center text-sm py-4 italic">Nenhum item encontrado.</p>';
+                lista.innerHTML = '<p class="text-gray-400 text-center text-sm py-4 italic">Nenhum registro encontrado.</p>';
                 return;
             }
             lista.innerHTML = itens.map(i => `
                 <div class="bg-white p-3 rounded-lg border shadow-sm flex justify-between items-center registro-card">
                     <div class="flex-1">
-                        <div class="font-mono font-bold text-gray-800 text-base">${i.codigo_item}</div>
-                        <div class="flex items-center gap-2">
-                             <span class="text-blue-600 text-[11px] font-bold uppercase">${i.codigo_prateleira}</span>
+                        <div class="font-mono font-bold text-gray-800 text-sm">${i.codigo_item}</div>
+                        <div class="flex items-center gap-2 mt-1">
+                             <span class="text-blue-600 text-[10px] font-black uppercase tracking-wider">${i.codigo_prateleira}</span>
                              <span class="text-gray-400 text-[9px]">${i.data} - ${i.hora}</span>
                         </div>
                     </div>
@@ -180,16 +179,15 @@
                 document.getElementById('item_cod').value = text;
                 html5QrCode.stop();
                 registrarEstoque();
-            }).catch(err => alert("Erro na câmera."));
+            }).catch(err => alert("Câmera indisponível."));
         }
 
         function exportarDados() {
             db.estoque.toArray().then(dados => {
-                if(dados.length === 0) return alert("Nada para exportar.");
                 const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `estoque_exportado.json`;
+                a.download = `estoque_${new Date().getTime()}.json`;
                 a.click();
             });
         }

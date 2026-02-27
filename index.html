@@ -11,12 +11,14 @@
     <style>
         #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
         .registro-card { border-left: 4px solid #16a34a; transition: all 0.2s; }
+        .btn-delete { color: #ef4444; padding: 8px; border-radius: 8px; transition: background 0.2s; }
+        .btn-delete:active { background-color: #fee2e2; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body class="bg-gray-100 min-h-screen font-sans text-gray-900">
 
     <nav class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
-        <h1 class="font-bold uppercase tracking-tight">SISTEMA DE ESTOQUE</h1>
+        <h1 class="font-bold uppercase tracking-tight">Estoque <span class="text-blue-200 text-xs">v2.2</span></h1>
         <button onclick="exportarDados()" class="text-xs bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition-colors">Exportar JSON</button>
     </nav>
 
@@ -25,7 +27,7 @@
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">1. Gerenciar Locais</h2>
             <div class="flex gap-2 mb-3">
-                <input id="plat_cod" type="text" placeholder="Cód. Ex: A1" class="border p-2 rounded w-1/3 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input id="plat_cod" type="text" placeholder="Ex: A1" class="border p-2 rounded w-1/3 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 <input id="plat_desc" type="text" placeholder="Descrição" class="border p-2 rounded w-1/2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 <button id="btn_add_prat" class="bg-blue-600 text-white px-4 rounded font-bold hover:bg-blue-700">+</button>
             </div>
@@ -43,13 +45,13 @@
                     <button onclick="iniciarScanner()" class="bg-gray-100 border p-3 rounded-xl hover:bg-gray-200">📷</button>
                 </div>
                 <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition-all">
-                    SALVAR REGISTRO
+                    SALVAR NO ESTOQUE
                 </button>
             </div>
         </section>
 
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-orange-400">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3 text-orange-600">3. Pesquisar Item</h2>
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3 text-orange-600 font-black">3. Pesquisar / Localizar Item</h2>
             <div class="relative">
                 <input id="input_busca" type="text" oninput="pesquisar()" placeholder="Digite o código para localizar..." 
                        class="w-full border-2 border-orange-100 p-3 rounded-xl pl-10 focus:border-orange-400 outline-none">
@@ -101,19 +103,29 @@
             const prat = document.getElementById('select_prateleira').value;
             if(!item || !prat) return alert("Preencha o código e o local!");
 
-            const agora = new Date();
             await db.estoque.add({
                 codigo_item: item,
                 codigo_prateleira: prat,
-                data: agora.toLocaleDateString('pt-BR'),
-                hora: agora.toLocaleTimeString('pt-BR')
+                data: new Date().toLocaleDateString('pt-BR'),
+                hora: new Date().toLocaleTimeString('pt-BR')
             });
 
             document.getElementById('item_cod').value = '';
+            document.getElementById('input_busca').value = ''; 
             carregarEstoque();
+            if(navigator.vibrate) navigator.vibrate(50);
         }
 
-        // --- LÓGICA DE PESQUISA ---
+        // --- FUNÇÃO PARA APAGAR ITEM INDIVIDUAL ---
+        async function deletarItem(id) {
+            if(confirm("Deseja apagar este registro?")) {
+                await db.estoque.delete(id);
+                // Verifica se deve recarregar a busca ou a lista geral
+                const termo = document.getElementById('input_busca').value.trim();
+                if(termo) pesquisar(); else carregarEstoque();
+            }
+        }
+
         async function pesquisar() {
             const termo = document.getElementById('input_busca').value.trim().toLowerCase();
             const titulo = document.getElementById('titulo_lista');
@@ -146,13 +158,18 @@
             }
             lista.innerHTML = itens.map(i => `
                 <div class="bg-white p-3 rounded-lg border shadow-sm flex justify-between items-center registro-card">
-                    <div>
+                    <div class="flex-1">
                         <div class="font-mono font-bold text-gray-800 text-base">${i.codigo_item}</div>
-                        <div class="text-blue-600 text-[11px] font-bold uppercase">${i.codigo_prateleira}</div>
+                        <div class="flex items-center gap-2">
+                             <span class="text-blue-600 text-[11px] font-bold uppercase">${i.codigo_prateleira}</span>
+                             <span class="text-gray-400 text-[9px]">${i.data} - ${i.hora}</span>
+                        </div>
                     </div>
-                    <div class="text-right text-gray-400 text-[10px]">
-                        ${i.data}<br>${i.hora}
-                    </div>
+                    <button onclick="deletarItem(${i.id})" class="btn-delete" title="Apagar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
                 </div>
             `).join('');
         }
@@ -163,15 +180,16 @@
                 document.getElementById('item_cod').value = text;
                 html5QrCode.stop();
                 registrarEstoque();
-            }).catch(err => console.error(err));
+            }).catch(err => alert("Erro na câmera."));
         }
 
         function exportarDados() {
             db.estoque.toArray().then(dados => {
+                if(dados.length === 0) return alert("Nada para exportar.");
                 const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `estoque.json`;
+                a.download = `estoque_exportado.json`;
                 a.click();
             });
         }

@@ -5,55 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Estoque Local Pro</title>
     <link rel="manifest" href="manifest.json">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-
     <style>
         #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
-        .registro-card { border-left: 4px solid #16a34a; }
+        .registro-card { border-left: 4px solid #16a34a; transition: all 0.2s; }
+        .highlight { background-color: #fef08a; padding: 2px; border-radius: 2px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
 
     <nav class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
-        <h1 class="font-bold">SISTEMA DE ESTOQUE</h1>
-        <button onclick="exportarDados()" class="text-xs bg-blue-800 px-3 py-1 rounded">Exportar JSON</button>
+        <h1 class="font-bold uppercase tracking-tight">Estoque <span class="text-blue-200 text-xs">v2.0</span></h1>
+        <button onclick="exportarDados()" class="text-xs bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition-colors">Exportar Dados</button>
     </nav>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
         
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">1. Gerenciar Locais</h2>
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3 flex justify-between">
+                1. Locais <span>(Prateleiras)</span>
+            </h2>
             <div class="flex gap-2 mb-3">
-                <input id="plat_cod" type="text" placeholder="Cód. Ex: A1" class="border p-2 rounded w-1/3 text-sm">
-                <input id="plat_desc" type="text" placeholder="Descrição" class="border p-2 rounded w-1/2 text-sm">
-                <button id="btn_add_prat" class="bg-blue-600 text-white px-4 rounded font-bold">+</button>
+                <input id="plat_cod" type="text" placeholder="Ex: A1" class="border p-2 rounded w-1/3 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input id="plat_desc" type="text" placeholder="Opcional: Descrição" class="border p-2 rounded w-1/2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <button id="btn_add_prat" class="bg-blue-600 text-white px-4 rounded font-bold hover:bg-blue-700">+</button>
             </div>
-            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium">
-                <option value="">-- Selecione a Prateleira --</option>
+            <select id="select_prateleira" class="w-full p-3 border rounded-lg bg-gray-50 font-medium text-gray-700">
+                <option value="">-- Selecione onde vai guardar --</option>
             </select>
         </section>
 
         <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">2. Entrada de Material</h2>
-            
-            <div id="reader" class="mb-4"></div> 
-            
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">2. Escanear ou Digitar</h2>
+            <div id="reader" class="mb-4 shadow-inner"></div> 
             <div class="space-y-3">
                 <div class="flex gap-2">
-                    <input id="item_cod" type="text" placeholder="Código do Item" class="flex-1 border-2 border-blue-50 p-3 rounded-xl font-mono text-lg focus:border-blue-500 outline-none">
-                    <button onclick="iniciarScanner()" class="bg-gray-100 border p-3 rounded-xl">📷</button>
+                    <input id="item_cod" type="text" placeholder="Código do Produto" class="flex-1 border-2 border-blue-50 p-3 rounded-xl font-mono text-lg focus:border-blue-500 outline-none">
+                    <button onclick="iniciarScanner()" class="bg-gray-100 border p-3 rounded-xl hover:bg-gray-200">📷</button>
                 </div>
-                <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-md active:bg-green-700 transition-colors">
-                    SALVAR REGISTRO
+                <button onclick="registrarEstoque()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition-all">
+                    SALVAR NO ESTOQUE
                 </button>
             </div>
         </section>
 
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 border-t-4 border-t-orange-400">
+            <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">3. Consultar / Pesquisar</h2>
+            <div class="relative">
+                <input id="input_busca" type="text" oninput="pesquisar()" placeholder="🔍 Digite o código para buscar..." 
+                       class="w-full border-2 border-orange-100 p-3 rounded-xl pl-10 focus:border-orange-400 outline-none">
+                <span class="absolute left-3 top-3.5 opacity-30">🔍</span>
+            </div>
+        </section>
+
         <section>
-            <h2 class="text-xs font-bold text-gray-400 uppercase mb-2 px-1">Últimos 5 Lançamentos</h2>
+            <h2 id="titulo_lista" class="text-xs font-bold text-gray-400 uppercase mb-2 px-1">Últimos Lançamentos</h2>
             <div id="lista_estoque" class="space-y-2">
                 </div>
         </section>
@@ -61,7 +69,7 @@
     </main>
 
     <script>
-        // --- INICIALIZAÇÃO DO BANCO DE DADOS ---
+        // --- BANCO DE DADOS ---
         const db = new Dexie("EstoqueDB");
         db.version(1).stores({
             prateleiras: "++id, &codigo, descricao",
@@ -69,56 +77,41 @@
         });
 
         db.open().then(() => {
-            console.log("Banco de dados aberto com sucesso");
             carregarPrateleiras();
             carregarEstoque();
-        }).catch(err => {
-            alert("Erro crítico ao abrir banco: " + err.message);
-        });
+        }).catch(err => alert("Erro no banco: " + err.message));
 
-        // --- FUNÇÃO PRATELEIRA (USANDO EVENT LISTENER PARA SER MAIS SEGURO) ---
+        // --- GESTÃO DE PRATELEIRAS ---
         document.getElementById('btn_add_prat').addEventListener('click', async () => {
             const inputCod = document.getElementById('plat_cod');
-            const inputDesc = document.getElementById('plat_desc');
             const cod = inputCod.value.trim().toUpperCase();
-            const desc = inputDesc.value.trim();
-
-            if(!cod) {
-                alert("Digite o código da prateleira!");
-                return;
-            }
+            if(!cod) return alert("Digite o código da prateleira!");
 
             try {
-                await db.prateleiras.add({ codigo: cod, descricao: desc });
+                await db.prateleiras.add({ codigo: cod, descricao: document.getElementById('plat_desc').value.trim() });
                 inputCod.value = '';
-                inputDesc.value = '';
-                alert("Prateleira " + cod + " adicionada!");
+                document.getElementById('plat_desc').value = '';
+                alert("Local " + cod + " criado!");
                 await carregarPrateleiras();
-            } catch (e) {
-                if (e.name === 'ConstraintError') alert("Erro: Esse código já existe!");
-                else alert("Erro: " + e.message);
-            }
+            } catch (e) { alert("Este local já existe!"); }
         });
 
         async function carregarPrateleiras() {
             const prats = await db.prateleiras.toArray();
             const select = document.getElementById('select_prateleira');
-            select.innerHTML = '<option value="">-- Selecione a Prateleira --</option>' + 
-                prats.map(p => `<option value="${p.codigo}">${p.codigo} - ${p.descricao}</option>`).join('');
+            select.innerHTML = '<option value="">-- Selecione onde vai guardar --</option>' + 
+                prats.map(p => `<option value="${p.codigo}">${p.codigo}</option>`).join('');
         }
 
-        // --- FUNÇÃO ESTOQUE ---
+        // --- REGISTRO DE ENTRADA ---
         async function registrarEstoque() {
             const item = document.getElementById('item_cod').value.trim();
             const prat = document.getElementById('select_prateleira').value;
             
-            if(!item || !prat) {
-                alert("Preencha o código do item e escolha a prateleira!");
-                return;
-            }
+            if(!item || !prat) return alert("Bipe o item e escolha a prateleira!");
 
-            const agora = new Date();
             try {
+                const agora = new Date();
                 await db.estoque.add({
                     codigo_item: item,
                     codigo_prateleira: prat,
@@ -127,28 +120,60 @@
                 });
 
                 document.getElementById('item_cod').value = '';
-                document.getElementById('item_cod').focus();
+                document.getElementById('input_busca').value = ''; // Limpa busca ao salvar novo
                 carregarEstoque();
                 if(navigator.vibrate) navigator.vibrate(50);
-            } catch (e) {
-                alert("Erro ao salvar: " + e.message);
+            } catch (e) { alert("Erro ao salvar: " + e.message); }
+        }
+
+        // --- FUNÇÃO DE PESQUISA (A NOVIDADE!) ---
+        async function pesquisar() {
+            const termo = document.getElementById('input_busca').value.trim().toLowerCase();
+            const lista = document.getElementById('lista_estoque');
+            const titulo = document.getElementById('titulo_lista');
+
+            if (termo.length === 0) {
+                titulo.innerText = "Últimos Lançamentos";
+                carregarEstoque();
+                return;
             }
+
+            titulo.innerText = "Resultados da Busca";
+            
+            // Busca no Dexie filtrando por código do item
+            const resultados = await db.estoque
+                .filter(item => item.codigo_item.toLowerCase().includes(termo))
+                .reverse()
+                .toArray();
+
+            renderizarLista(resultados, true);
         }
 
         async function carregarEstoque() {
-            const itens = await db.estoque.reverse().limit(5).toArray();
+            const itens = await db.estoque.reverse().limit(10).toArray();
+            renderizarLista(itens, false);
+        }
+
+        function renderizarLista(itens, isBusca) {
             const lista = document.getElementById('lista_estoque');
             if(itens.length === 0) {
-                lista.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">Nenhum registro local.</p>';
+                lista.innerHTML = `<p class="text-gray-400 text-center text-sm py-4 italic">
+                    ${isBusca ? 'Nenhum item encontrado.' : 'Nenhum registro no banco.'}
+                </p>`;
                 return;
             }
+
             lista.innerHTML = itens.map(i => `
                 <div class="bg-white p-3 rounded-lg border shadow-sm flex justify-between items-center registro-card">
                     <div>
-                        <div class="font-mono font-bold text-gray-800">${i.codigo_item}</div>
-                        <div class="text-blue-600 text-xs font-bold">${i.codigo_prateleira}</div>
+                        <div class="font-mono font-bold text-gray-800 text-base">${i.codigo_item}</div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 rounded-full font-bold uppercase">Local: ${i.codigo_prateleira}</span>
+                        </div>
                     </div>
-                    <div class="text-right text-gray-400 text-[10px]">${i.data}<br>${i.hora}</div>
+                    <div class="text-right text-gray-400 text-[10px] leading-tight">
+                        <span class="font-medium">${i.data}</span><br>${i.hora}
+                    </div>
                 </div>
             `).join('');
         }
@@ -158,30 +183,28 @@
             const html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
                 { facingMode: "environment" }, 
-                { fps: 10, qrbox: { width: 250, height: 150 } },
+                { fps: 15, qrbox: { width: 250, height: 150 } },
                 (text) => {
                     document.getElementById('item_cod').value = text;
                     html5QrCode.stop();
                     registrarEstoque();
                 }
-            ).catch(err => alert("Erro na câmera: " + err));
+            ).catch(err => alert("Câmera bloqueada ou não encontrada."));
         }
 
         function exportarDados() {
             db.estoque.toArray().then(dados => {
-                if(dados.length === 0) return alert("Não há dados para exportar");
+                if(dados.length === 0) return alert("Não há dados.");
                 const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
-                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `estoque_${new Date().getTime()}.json`;
+                a.href = URL.createObjectURL(blob);
+                a.download = `estoque_completo.json`;
                 a.click();
             });
         }
 
-        // Registro do Service Worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log("SW error", err));
+            navigator.serviceWorker.register('sw.js');
         }
     </script>
 </body>
